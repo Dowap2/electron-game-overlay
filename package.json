@@ -1,5 +1,6 @@
 {
   "devDependencies": {
+    "@types/axios": "^0.9.36",
     "@types/node": "^24.3.0",
     "electron": "^37.3.1",
     "ts-node": "^10.9.2",
@@ -8,7 +9,7 @@
   "name": "electron-game-overlay",
   "version": "1.0.0",
   "description": "",
-  "main": "main.js",
+  "main": "dist/main.js",
   "dependencies": {
     "axios": "^1.11.0",
     "boolean": "^3.2.0",
@@ -71,8 +72,9 @@
     "yauzl": "^2.10.0"
   },
   "scripts": {
-    "start": "electron .",
-    "dev": "concurrently \"cd renderer && npm start\" \"npm start\""
+    "build": "tsc",
+    "start": "npm run build && electron dist/main.js",
+    "dev": "concurrently \"cd renderer && npm start\" \"npm run start\""
   },
   "repository": {
     "type": "git",
