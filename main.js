@@ -1,10 +1,15 @@
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
+const fs = require("fs");
+const axios = require("axios");
+const https = require("https");
+
+let overlayWindow;
 
 function createOverlay() {
-  const overlayWin = new BrowserWindow({
-    width: 800,
-    height: 600,
+  overlayWindow = new BrowserWindow({
+    width: 500,
+    height: 300,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -12,14 +17,35 @@ function createOverlay() {
     resizable: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
-      contextIsolation: true,
-      nodeIntegration: false,
+      nodeIntegration: true,
+      contextIsolation: false,
     },
   });
 
-  overlayWin.setIgnoreMouseEvents(true, { forward: true });
+  overlayWindow.loadURL(
+    process.env.ELECTRON_START_URL || "http://localhost:3000"
+  );
 
-  overlayWin.loadURL("http://localhost:3000");
+  overlayWindow.setIgnoreMouseEvents(true);
 }
 
-app.whenReady().then(createOverlay);
+app.whenReady().then(() => {
+  createOverlay();
+  startTFTWatcher();
+});
+
+function startTFTWatcher() {
+  setInterval(async () => {
+    try {
+      const tftData = await fetchTFTData();
+      overlayWindow.show();
+      overlayWindow.webContents.send("update-tft", tftData);
+    } catch (err) {
+      // overlayWindow.hide();
+    }
+  }, 1000);
+}
+
+function fetchTFTData() {
+  return 0;
+}

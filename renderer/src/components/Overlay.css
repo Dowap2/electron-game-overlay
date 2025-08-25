@@ -1,0 +1,17 @@
+.overlay-container {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 8px;
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+.champ-box img {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+}

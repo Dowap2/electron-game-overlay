@@ -1,8 +1,5 @@
-import { contextBridge, ipcRenderer } from "electron";
+const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("electronAPI", {
-  sendToMain: (channel: string, data: any) => ipcRenderer.send(channel, data),
-  onFromMain: (channel: string, callback: (data: any) => void) => {
-    ipcRenderer.on(channel, (event, data) => callback(data));
-  },
+  onUpdateTFT: (callback) => ipcRenderer.on("update-tft", callback),
 });
