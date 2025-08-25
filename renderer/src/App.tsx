@@ -25,7 +25,6 @@ function App() {
           justifyContent: "center",
           alignItems: "center",
           cursor: "pointer",
-          zIndex: 10,
         }}
         onClick={() => {
           console.log("버튼 클릭됨!");
