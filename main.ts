@@ -1,9 +1,9 @@
 import { BrowserWindow } from "electron";
+import axios, { AxiosRequestConfig } from "axios";
 
 const { app, ipcMain } = require("electron");
 const path = require("path");
 const fs = require("fs");
-const axios = require("axios");
 const https = require("https");
 
 console.log("main!");
@@ -53,21 +53,21 @@ function startTFTWatcher() {
 }
 
 interface Unit {
-  id: number;
-  name: string;
-  icon: string;
-  items: string[];
+  character_id: string;
+  tier: number;
+  items: number[];
 }
 
 interface Player {
-  name: string;
-  health: number;
-  units: Unit[];
+  summonerName: string;
+  isLocalPlayer: boolean; // 내가 조작 중인 플레이어인지 여부
+  units: Unit[]; // 보드 위에 올라간 기물들
 }
 
-async function fetchTFTData(): Promise<Player[]> {
+export async function fetchTFTData(): Promise<Player[]> {
   console.log("fetchData");
   console.log("LOCALAPPDATA:", process.env.LOCALAPPDATA);
+
   const possiblePaths = [
     path.join(
       process.env.LOCALAPPDATA!,
@@ -75,26 +75,61 @@ async function fetchTFTData(): Promise<Player[]> {
     ),
     "C:/Riot Games/League of Legends/lockfile",
     "C:/Program Files/Riot Games/League of Legends/lockfile",
+    path.join(process.env.LOCALAPPDATA!, "Riot Games/Riot Client/lockfile"), // Riot Client도 fallback
   ];
 
   const lockfilePath = possiblePaths.find(fs.existsSync);
 
-  if (!fs.existsSync(lockfilePath)) {
+  if (!lockfilePath || !fs.existsSync(lockfilePath)) {
     console.log("Lockfile 없음. 클라이언트를 켜고 게임을 실행하세요.");
     return [];
   }
+
   console.log("lockfilePath exists?", fs.existsSync(lockfilePath));
+
   const content = fs.readFileSync(lockfilePath, "utf8");
-  const [name, pid, port, protocol, password] = content.split(":");
-  console.log(lockfilePath, name, pid, port, protocol, password);
+  console.log("Lockfile content:", content); // username:riot, password 확인
+  const [name, pid, port, password, protocol] = content.split(":");
   const agent = new https.Agent({ rejectUnauthorized: false });
-  console.log(agent);
-  const res = await axios.get(
-    `https://127.0.0.1:${port}/lol-tft-game/v1/participants`,
+
+  const phaseRes = await axios.get(
+    `https://127.0.0.1:${port}/lol-gameflow/v1/gameflow-phase`,
     { httpsAgent: agent, auth: { username: "riot", password } }
   );
+  console.log("Game phase:", phaseRes.data);
 
-  const data: Player[] = res.data;
-  console.log(res);
-  return data;
+  try {
+    const config: AxiosRequestConfig = {
+      httpsAgent: agent,
+      auth: { username: "riot", password },
+    };
+
+    const res = await axios.get<Player[]>(
+      `https://127.0.0.1:${port}/lol-summoner/v1/current-summoner`,
+      config
+    );
+
+    console.log(res);
+
+    const players = res.data;
+
+    // 내 기물 수 vs 상대방 기물 수 계산
+    const myPlayer = players.find((p) => p.isLocalPlayer);
+    const opponentPlayers = players.filter((p) => !p.isLocalPlayer);
+
+    if (myPlayer) {
+      console.log(`내 기물 수: ${myPlayer.units.length}`);
+    }
+
+    opponentPlayers.forEach((op, i) => {
+      console.log(
+        `상대 ${i + 1} (${op.summonerName}) 기물 수: ${op.units.length}`
+      );
+    });
+
+    return players;
+  } catch (err: any) {
+    console.error("fetchTFTData 에러:", err.message);
+    return [];
+  }
 }
