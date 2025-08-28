@@ -1,14 +1,39 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const electron_1 = require("electron");
-const log_1 = require("./windows/log");
-const overlay_1 = require("./windows/overlay");
-const watcher_1 = require("./tft/watcher");
-let overlayWindow;
-electron_1.app.whenReady().then(() => {
-    const logWindow = (0, log_1.createLogWindow)();
-    logWindow.webContents.once("did-finish-load", () => {
-        overlayWindow = (0, overlay_1.createOverlayWindow)();
-        (0, watcher_1.startTFTWatcher)(overlayWindow);
-    });
+import { app } from "electron";
+import { createOverlayWindow } from "./windows/overlay.js";
+import { startWatcher } from "./tft/watcher.js";
+// 디버그용 전역 로그
+process.on("uncaughtException", (e) => console.error("[uncaughtException]", e));
+process.on("unhandledRejection", (e) => console.error("[unhandledRejection]", e));
+let interval = null;
+console.log("[main] boot. ELECTRON_START_URL =", process.env.ELECTRON_START_URL);
+app.whenReady().then(() => {
+    try {
+        console.log("[main] app ready");
+        const url = process.env.ELECTRON_START_URL; // http://localhost:5173
+        const win = createOverlayWindow(url || undefined);
+        console.log("[main] window created");
+        if (interval) {
+            clearInterval(interval);
+            interval = null;
+        }
+        try {
+            interval = startWatcher(win);
+            console.log("[main] watcher started:", interval);
+        }
+        catch (err) {
+            console.error("[main] startWatcher failed:", err);
+        }
+    }
+    catch (e) {
+        console.error("[main] error in whenReady", e);
+    }
 });
+app.on("window-all-closed", () => {
+    console.log("[main] window-all-closed");
+    if (interval) {
+        clearInterval(interval);
+        interval = null;
+    }
+    app.quit();
+});
+//# sourceMappingURL=main.js.map

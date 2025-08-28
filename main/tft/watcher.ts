@@ -1,9 +1,24 @@
 import { BrowserWindow } from "electron";
-import { fetchTFTData } from "./fetchTFTData";
+import {
+  getGameflowPhase,
+  getCurrentSummoner,
+  getLiveAllGameData,
+} from "./fetchTFTData.js";
 
-export function startTFTWatcher(overlayWindow: BrowserWindow) {
-  setInterval(async () => {
-    const tftData = await fetchTFTData();
-    overlayWindow.webContents.send("update-tft", tftData);
-  }, 1000);
+export function startWatcher(target: BrowserWindow) {
+  console.log("tick");
+  const tick = async () => {
+    const gameflow = await getGameflowPhase();
+    const summoner = await getCurrentSummoner();
+    const liveData =
+      gameflow === "InProgress" ? await getLiveAllGameData() : null;
+
+    if (!target.isDestroyed()) {
+      target.webContents.send("overlay:data", { gameflow, summoner, liveData });
+    }
+  };
+
+  // 1초 폴링
+  tick();
+  return setInterval(tick, 1000);
 }

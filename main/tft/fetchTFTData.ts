@@ -1,88 +1,87 @@
-import path from "path";
 import fs from "fs";
+import path from "path";
 import https from "https";
-import axios from "axios";
-import { Player } from "../types";
-import { logToWindow } from "../logger";
+import axios, { AxiosInstance } from "axios";
 
-function safeStringify(obj: any) {
-  const seen = new WeakSet();
-  return JSON.stringify(
-    obj,
-    (key, value) => {
-      if (typeof value === "object" && value !== null) {
-        if (seen.has(value)) return "[Circular]";
-        seen.add(value);
-      }
-      return value;
-    },
-    2
-  );
+type LockInfo = { port: string; password: string };
+
+function findLockfile(): string | null {
+  const candidates = [
+    "C:\\Riot Games\\League of Legends\\lockfile",
+    "C:\\Riot Games\\Riot Client\\Config\\lockfile",
+    path.join(
+      process.env.LOCALAPPDATA || "",
+      "Riot Games\\League of Legends\\lockfile"
+    ),
+  ];
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) return p;
+    } catch {}
+  }
+  return null;
 }
 
-export async function fetchTFTData(): Promise<Player[]> {
-  const possiblePaths = [
-    path.join(
-      process.env.LOCALAPPDATA!,
-      "Riot Games/League of Legends/lockfile"
-    ),
-    "C:/Riot Games/League of Legends/lockfile",
-    "C:/Program Files/Riot Games/League of Legends/lockfile",
-    path.join(process.env.LOCALAPPDATA!, "Riot Games/Riot Client/lockfile"),
-  ];
+function readLockfile(): LockInfo | null {
+  const file = findLockfile();
+  if (!file) return null;
+  const [name, pid, port, protocol, password] = fs
+    .readFileSync(file, "utf8")
+    .trim()
+    .split(":");
+  return { port, password };
+}
 
-  const lockfilePath = possiblePaths.find(fs.existsSync);
-  if (!lockfilePath) {
-    logToWindow("Lockfile 없음. 클라이언트를 켜고 게임을 실행하세요.");
-    return [];
-  }
+let lcuClient: AxiosInstance | null = null;
 
-  const content = fs.readFileSync(lockfilePath, "utf8");
-  const [, , port, password] = content.split(":");
-  const agent = new https.Agent({ rejectUnauthorized: false });
+function ensureLcu(): AxiosInstance | null {
+  if (lcuClient) return lcuClient;
+  const info = readLockfile();
+  if (!info) return null;
+  lcuClient = axios.create({
+    baseURL: `https://127.0.0.1:${info.port}`,
+    httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+    auth: { username: "riot", password: info.password },
+    timeout: 1000,
+  });
+  return lcuClient;
+}
 
+export async function getGameflowPhase(): Promise<string> {
+  console.log("a");
   try {
-    // const phaseRes = await axios.get(
-    //   `https://127.0.0.1:${port}/lol-gameflow/v1/gameflow-phase`,
-    //   { httpsAgent: agent, auth: { username: "riot", password } }
-    // );
-
-    // const phaseRes = await axios.get( //이거 내가 만든 팀 목록 가져오는 api임
-    //   `https://127.0.0.1:${port}/lol-tft-team-planner/v1/sets/dirty`,
-    //   { httpsAgent: agent, auth: { username: "riot", password } }
-    // );
-    const phaseRes = await axios.get(
-      `https://127.0.0.1:${port}/lol-tft-skill-tree/v1/player-progression`,
-      {
-        httpsAgent: agent,
-        auth: { username: "riot", password },
-      }
-    );
-
-    console.log(safeStringify(phaseRes.data));
-    logToWindow(safeStringify(phaseRes.data));
-  } catch (err: any) {
-    logToWindow(`Error fetching game phase: ${err.message}`);
+    const c = ensureLcu();
+    if (!c) return "Unknown";
+    const { data } = await c.get("/lol-gameflow/v1/gameflow-phase");
+    console.log(data);
+    return data;
+  } catch {
+    return "Unknown";
   }
+}
 
+export async function getCurrentSummoner(): Promise<{
+  displayName: string;
+  puuid: string;
+} | null> {
   try {
-    // const res = await axios.get("https://127.0.0.1:2999/tft-match/v1/players", {
-    //   httpsAgent: agent,
-    // });
+    const c = ensureLcu();
+    if (!c) return null;
+    const { data } = await c.get("/lol-summoner/v1/current-summoner");
+    return { displayName: data.displayName, puuid: data.puuid };
+  } catch {
+    return null;
+  }
+}
 
-    // const res = await axios.get("https://127.0.0.1:2999/tft-match/v1/game", {
-    //   httpsAgent: agent,
-    // });
-    const res = await axios.get(
-      `http://127.0.0.1:${port}/swagger/v1/api-docs`,
-      { httpsAgent: agent, auth: { username: "riot", password } }
+export async function getLiveAllGameData(): Promise<any | null> {
+  try {
+    const { data } = await axios.get(
+      "http://127.0.0.1:2999/liveclientdata/allgamedata",
+      { timeout: 700 }
     );
-    console.log(res);
-    // logToWindow(`res.data:\n${JSON.stringify(res.data, null, 2)}`);
-    logToWindow(`res.data:\n${safeStringify(res.data)}`);
-    return [];
-  } catch (err: any) {
-    logToWindow(`Error fetching TFT data: ${err.message}`);
-    return [];
+    return data;
+  } catch {
+    return null;
   }
 }

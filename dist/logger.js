@@ -1,14 +1,9 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.setLogWindow = setLogWindow;
-exports.logToWindow = logToWindow;
-exports.flushLogQueue = flushLogQueue;
 let logWindow = null;
 const logQueue = [];
-function setLogWindow(window) {
+export function setLogWindow(window) {
     logWindow = window;
 }
-function logToWindow(message) {
+export function logToWindow(message) {
     if (!logWindow || logWindow.webContents.isLoading()) {
         logQueue.push(message);
     }
@@ -16,10 +11,11 @@ function logToWindow(message) {
         logWindow.webContents.send("log", message);
     }
 }
-function flushLogQueue() {
+export function flushLogQueue() {
     if (!logWindow)
         return;
     while (logQueue.length > 0) {
         logWindow.webContents.send("log", logQueue.shift());
     }
 }
+//# sourceMappingURL=logger.js.map

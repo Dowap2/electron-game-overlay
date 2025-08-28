@@ -1,6 +1,6 @@
 import { BrowserWindow } from "electron";
 import path from "path";
-import { flushLogQueue, logToWindow, setLogWindow } from "../logger";
+import { flushLogQueue, logToWindow, setLogWindow } from "../logger.js";
 
 export function createLogWindow() {
   const logWindow = new BrowserWindow({
