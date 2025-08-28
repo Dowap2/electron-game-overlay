@@ -6,6 +6,10 @@
     "typescript": "^5.9.2"
   },
   "name": "electron-game-overlay",
+  "workspaces": [
+    "main",
+    "renderer"
+  ],
   "version": "1.0.0",
   "description": "",
   "main": "dist/main.js",

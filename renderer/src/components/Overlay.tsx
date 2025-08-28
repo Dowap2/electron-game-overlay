@@ -24,26 +24,11 @@ declare global {
 export default function Overlay() {
   const [participants, setParticipants] = useState<Player[]>([]);
 
-  const dummy = [
-    {
-      name: "sad",
-      health: 32,
-      units: [
-        {
-          id: 12,
-          name: "garen",
-          icon: "",
-          items: ["garoil"],
-        },
-      ],
-    },
-  ];
-
   useEffect(() => {
-    // window.electronAPI.onUpdateTFT((_, data) => {
-    //   setParticipants(data);
-    // });
-    setParticipants(dummy);
+    window.electronAPI.onUpdateTFT((_, data) => {
+      console.log(data);
+      setParticipants(data);
+    });
   }, []);
 
   return (
